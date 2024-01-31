@@ -26,20 +26,6 @@ def sdapi_t2i():
     logger.info(f'get prompt: {prompt} --------> start generating……')
     response_data = {"images": []}
     # 如果有 controlnet
-    # try:
-    #     if ("alwayson_scripts" in json_data):
-    #         input_image = Image.open(BytesIO(base64.b64decode(json_data['alwayson_scripts']['ControlNet']['args'][0]['input_image'])))
-    #         images = pipe_inst.text2img_sketch(prompt=prompt, negative_prompt=negative_prompt,image=input_image,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,adapter_conditioning_scale=adapter_conditioning_scale,width=width,height=height)
-    #         response_data["images"].append(image_to_base64(images[0]))
-    #         response_data["images"].append(image_to_base64(images[-1]))
-    #     else:
-    #         images = pipe_inst.text2img(prompt=prompt, negative_prompt=negative_prompt,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,width=width,height=height)
-    #         response_data["images"].append(image_to_base64(images[0]))
-    # except Exception as e:
-    #     response_data['error_message'] = str(e)
-    # finally:
-    #     logger.info(f'File generated successfully <-----------------')
-    #     return jsonify(response_data)
     if ("alwayson_scripts" in json_data):
         input_image = Image.open(BytesIO(base64.b64decode(json_data['alwayson_scripts']['ControlNet']['args'][0]['input_image'])))
         images = pipe_inst.text2img_sketch(prompt=prompt, negative_prompt=negative_prompt,image=input_image,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,adapter_conditioning_scale=adapter_conditioning_scale,width=width,height=height)
