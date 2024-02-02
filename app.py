@@ -34,6 +34,7 @@ def sdapi_t2i():
     else:
         images = pipe_inst.text2img(prompt=prompt, negative_prompt=negative_prompt,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,width=width,height=height)
         response_data["images"].append(image_to_base64(images[0]))
+    logger.info('finished')
     return jsonify(response_data)
 
 @app.route("/sdapi/v1/progress", methods=['get'])
