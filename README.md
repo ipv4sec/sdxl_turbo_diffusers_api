@@ -15,6 +15,10 @@ export AdapterSketchPath="your/model/path"
 2. Start the service through flask
 
 ```bash
+pip install -r requirements.txt
+```
+
+```bash
 python -m flask run
 ```
 
