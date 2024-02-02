@@ -24,7 +24,7 @@ class Pipeline:
         self.get_model_path_from_env()
         self.prepare()
 
-    def get_jobs() -> int:
+    def get_jobs(self) -> int:
         return self.__jobs
 
     # Config and load model 
