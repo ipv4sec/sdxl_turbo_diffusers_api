@@ -5,17 +5,15 @@ import torch
 from diffusers import StableDiffusionXLAdapterPipeline, T2IAdapter,DPMSolverMultistepScheduler,DPMSolverSinglestepScheduler
 from diffusers.utils import load_image
 from controlnet_aux.pidi import PidiNetDetector
-import logging
 import diffusers
-import base64
-import io,sys,os
+import os
 from typing import List
 from PIL import Image
 
 # -*- coding: utf-8 -*-
 class Pipeline:
     __jobs = 0
-    __ti2_adapter_path = ""
+    __adapter_sketch_path = ""
     __base_model_path = ""
     __pidi_net_path = ""
 
@@ -34,7 +32,6 @@ class Pipeline:
 
     # Get model from env
     def get_model_path_from_env(self):
-        self.__ti2_adapter_path = os.environ.get("T2IAdapterPath", "TencentARC/t2i-adapter-sketch-sdxl-1.0")
         self.__base_model_path = os.environ.get("BaseModelPath", "0x4f1f/TurboVisionXL-v3.2")
         self.__pidi_net_path = os.environ.get("PidiNetPath", "lllyasviel/Annotators")
         self.__adapter_sketch_path = os.environ.get("AdapterSketchPath", "TencentARC/t2i-adapter-sketch-sdxl-1.0")

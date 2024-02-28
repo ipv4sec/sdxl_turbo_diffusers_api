@@ -6,7 +6,6 @@ A image generation service api, developed with diffusers + flask
 1. You can load the model locally through the environment variable declaration, if you do not declare it, it will be downloaded from huggingface.co
 
 ```bash
-export T2IAdapterPath="your/model/path"
 export BaseModelPath="your/model/path"
 export PidiNetPath="your/model/path"
 export AdapterSketchPath="your/model/path"
