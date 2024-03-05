@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import logging
 from PIL import Image
-from pipeline import pipe_inst
+from pipelines.pipeline import pipe_inst
 from utils.image import image_to_base64
-from flask import Flask, send_file,jsonify
+from flask import Flask,jsonify
 from flask import request
 from io import BytesIO
 import base64
@@ -39,7 +39,6 @@ def sdapi_t2i():
 
 @app.route("/sdapi/v1/progress", methods=['get'])
 def job_progress():
-    global task_status
     response_data = {
         "progress": 0.0,
         "eta_relative": 0.0,
@@ -56,4 +55,21 @@ def job_progress():
         "current_image": None,
         "textinfo": None
     }
+    return jsonify(response_data)
+
+@app.route("/api/v1/text2img/controlnet/reference", methods=["post"])
+def ti2_reference():
+    json_data = request.get_json(force=True, silent=True) or {}
+    prompt = json_data.get('prompt', '')
+    negative_prompt = json_data.get('negative_prompt', "")
+    guidance_scale = float(json_data.get('cfg_scale', 1.5))
+    num_inference_steps = int(json_data.get('steps', 5))
+    width = int(json_data.get('width', 512))
+    height = int(json_data.get('height', 512))
+    logger.info(f'get prompt: {prompt} --------> start generating……')
+    response_data = {"images": []}
+    input_image = Image.open(BytesIO(base64.b64decode(json_data.get('input_image'))))
+    image = pipe_inst.text2img_reference(prompt=prompt, image=input_image,negative_prompt=negative_prompt, guidance_scale=guidance_scale,num_inference_steps=num_inference_steps,width=width,height=height)
+    response_data["images"].append(image_to_base64(image))
+    logger.info('--------> finished')
     return jsonify(response_data)
