@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from diffusers import AutoPipelineForText2Image
+from diffusers import StableDiffusionXLPipeline,AutoencoderKL
 import torch
 from diffusers import StableDiffusionXLAdapterPipeline, T2IAdapter,DPMSolverSinglestepScheduler
 from pipelines.stablediffusion_xl_reference_pipeline import StableDiffusionXLReferencePipeline
@@ -40,7 +40,8 @@ class Pipeline:
 
     # load model
     def load_model(self):
-        self.__pipeline = AutoPipelineForText2Image.from_pretrained(self.__base_model_path, torch_dtype=torch.float16, variant="fp16",scheduler=self.scheduler).to("cuda")
+        vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
+        self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16, variant="fp16",scheduler=self.scheduler,vae=vae).to("cuda")
         self.__adapter_sketch = T2IAdapter.from_pretrained(self.__adapter_sketch_path, torch_dtype=torch.float16, varient="fp16").to("cuda")
         self.__pipeline_adapter = StableDiffusionXLAdapterPipeline(
             vae=self.__pipeline.vae,
@@ -51,9 +52,17 @@ class Pipeline:
             text_encoder_2=self.__pipeline.text_encoder_2,
             tokenizer_2=self.__pipeline.tokenizer_2,
             adapter=self.__adapter_sketch,
-        )
+        ).to("cuda")
         self.__pipeline_adapter.adapter=self.__adapter_sketch
-        self.__pipeline_reference = StableDiffusionXLReferencePipeline(**self.__pipeline.components)
+        self.__pipeline_reference = StableDiffusionXLReferencePipeline(
+            vae=self.__pipeline.vae,
+            text_encoder=self.__pipeline.text_encoder,
+            tokenizer=self.__pipeline.tokenizer,
+            unet=self.__pipeline.unet,
+            scheduler=self.__pipeline.scheduler,
+            text_encoder_2=self.__pipeline.text_encoder_2,
+            tokenizer_2=self.__pipeline.tokenizer_2,
+        ).to("cuda")
         self.__pidinet = PidiNetDetector.from_pretrained(self.__pidi_net_path).to("cuda")
         
 

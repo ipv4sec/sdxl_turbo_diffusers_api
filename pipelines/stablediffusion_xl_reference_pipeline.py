@@ -437,6 +437,7 @@ class StableDiffusionXLReferencePipeline(StableDiffusionXLPipeline):
             attention_mask: Optional[torch.FloatTensor] = None,
             cross_attention_kwargs: Optional[Dict[str, Any]] = None,
             encoder_attention_mask: Optional[torch.FloatTensor] = None,
+            additional_residuals = None,
         ):
             eps = 1e-6
 
@@ -485,7 +486,7 @@ class StableDiffusionXLReferencePipeline(StableDiffusionXLPipeline):
 
             return hidden_states, output_states
 
-        def hacked_DownBlock2D_forward(self, hidden_states, temb=None, *args, **kwargs):
+        def hacked_DownBlock2D_forward(self, hidden_states, temb=None, additional_residuals=None,*args, **kwargs):
             eps = 1e-6
 
             output_states = ()
