@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from diffusers import StableDiffusionXLPipeline,AutoencoderKL
+from diffusers import StableDiffusionXLPipeline,StableDiffusionXLAdapterPipeline,T2IAdapter
 import torch
-from diffusers import StableDiffusionXLAdapterPipeline, T2IAdapter,DPMSolverSinglestepScheduler
+from diffusers import EulerAncestralDiscreteScheduler
 from pipelines.stablediffusion_xl_reference_pipeline import StableDiffusionXLReferencePipeline
 from controlnet_aux.pidi import PidiNetDetector
 import os
@@ -25,7 +25,6 @@ class Pipeline:
 
     # Config and load model 
     def prepare(self):
-        self.set_scheduler()
         self.load_model()
 
     # Get model from env
@@ -34,15 +33,11 @@ class Pipeline:
         self.__pidi_net_path = os.environ.get("PidiNetPath", "lllyasviel/Annotators")
         self.__adapter_sketch_path = os.environ.get("AdapterSketchPath", "TencentARC/t2i-adapter-sketch-sdxl-1.0")
 
-    # Set sampling method
-    def set_scheduler(self):
-        self.scheduler = DPMSolverSinglestepScheduler.from_pretrained(self.__base_model_path, subfolder="scheduler",lower_order_final=True)
-
     # load model
     def load_model(self):
-        vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
-        self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16, variant="fp16",scheduler=self.scheduler,vae=vae).to("cuda")
-        self.__adapter_sketch = T2IAdapter.from_pretrained(self.__adapter_sketch_path, torch_dtype=torch.float16, varient="fp16").to("cuda")
+        self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16, variant="fp16").to("cuda")
+        self.__pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config)
+        self.__adapter_sketch = T2IAdapter.from_pretrained(self.__adapter_sketch_path, torch_dtype=torch.float16, varient="fp16").to('cuda')
         self.__pipeline_adapter = StableDiffusionXLAdapterPipeline(
             vae=self.__pipeline.vae,
             text_encoder=self.__pipeline.text_encoder,
@@ -51,9 +46,8 @@ class Pipeline:
             scheduler=self.__pipeline.scheduler,
             text_encoder_2=self.__pipeline.text_encoder_2,
             tokenizer_2=self.__pipeline.tokenizer_2,
-            adapter=self.__adapter_sketch,
+            adapter=self.__adapter_sketch
         ).to("cuda")
-        self.__pipeline_adapter.adapter=self.__adapter_sketch
         self.__pipeline_reference = StableDiffusionXLReferencePipeline(
             vae=self.__pipeline.vae,
             text_encoder=self.__pipeline.text_encoder,
