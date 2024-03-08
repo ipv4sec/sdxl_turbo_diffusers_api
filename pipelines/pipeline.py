@@ -2,7 +2,7 @@
 
 from diffusers import StableDiffusionXLPipeline,StableDiffusionXLAdapterPipeline,T2IAdapter
 import torch
-from diffusers import EulerAncestralDiscreteScheduler
+from diffusers import EulerAncestralDiscreteScheduler,DPMSolverSinglestepScheduler
 from pipelines.stablediffusion_xl_reference_pipeline import StableDiffusionXLReferencePipeline
 from controlnet_aux.pidi import PidiNetDetector
 import os
@@ -36,24 +36,17 @@ class Pipeline:
     # load model
     def load_model(self):
         self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16, variant="fp16").to("cuda")
-        self.__pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config)
+        self.__pipeline.scheduler = DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config)
         self.__adapter_sketch = T2IAdapter.from_pretrained(self.__adapter_sketch_path, torch_dtype=torch.float16, varient="fp16").to('cuda')
-        self.__pipeline_adapter = StableDiffusionXLAdapterPipeline(
-            vae=self.__pipeline.vae,
-            text_encoder=self.__pipeline.text_encoder,
-            tokenizer=self.__pipeline.tokenizer,
-            unet=self.__pipeline.unet,
-            scheduler=self.__pipeline.scheduler,
-            text_encoder_2=self.__pipeline.text_encoder_2,
-            tokenizer_2=self.__pipeline.tokenizer_2,
-            adapter=self.__adapter_sketch
-        ).to("cuda")
+        # 使用同一个 pipeline.compontent 会有干扰
+        self.__pipeline_adapter = StableDiffusionXLAdapterPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16, variant="fp16",adapter=self.__adapter_sketch).to("cuda")
+        self.__pipeline_adapter.scheduler = EulerAncestralDiscreteScheduler.from_config(self.__pipeline_adapter.scheduler.config)
         self.__pipeline_reference = StableDiffusionXLReferencePipeline(
             vae=self.__pipeline.vae,
             text_encoder=self.__pipeline.text_encoder,
             tokenizer=self.__pipeline.tokenizer,
             unet=self.__pipeline.unet,
-            scheduler=self.__pipeline.scheduler,
+            scheduler=EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config),
             text_encoder_2=self.__pipeline.text_encoder_2,
             tokenizer_2=self.__pipeline.tokenizer_2,
         ).to("cuda")
@@ -77,6 +70,7 @@ class Pipeline:
             input_image_sketch = self.__pidinet(
                 image, detect_resolution=1024, image_resolution=1024, apply_filter=True
             )
+            input_image_sketch.save('sketch.png')
             images = self.__pipeline_adapter(prompt=prompt, negative_prompt=negative_prompt,image=input_image_sketch,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,adapter_conditioning_scale=adapter_conditioning_scale,width=width,height=height).images
             images.append(input_image_sketch)
             return images
@@ -102,3 +96,4 @@ class Pipeline:
             self.__jobs -= 1
 
 pipe_inst = Pipeline()
+

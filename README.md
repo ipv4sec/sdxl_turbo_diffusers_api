@@ -25,6 +25,29 @@ python -m flask run
 
 just like stable diffusion webui api, but only:
 
-- /sdapi/v1/txt2img
+## /sdapi/v1/txt2img
+Recommended parameters:
+
+```json
+{
+    "prompt": "stylized by Daria Petrilli, Raw digital photo, 3D Rendering, Colorful Bird, it is Verdant, concept art, Stormy weather, Dark Academia, Light and shadow plays, film grain, Nikon d3300, 80mm, glitter texture, most beautiful artwork in the world, highly detailed, extremely content happy smile",
+    "steps": 5,
+    "cfg_scale": 1.5,
+    "width": 1344,
+    "height": 768
+}
+```
+
+with sketch:
+```json
+{
+    "prompt": "stylized by Daria Petrilli, Raw digital photo, 3D Rendering, Colorful Bird, it is Verdant, concept art, Stormy weather, Dark Academia, Light and shadow plays, film grain, Nikon d3300, 80mm, glitter texture, most beautiful artwork in the world, highly detailed, extremely content happy smile",
+    "steps": 5,
+    "cfg_scale": 4,
+    "width": 1344,
+    "height": 768
+}
+```
+
 - /sdapi/v1/progress
 - /api/v1/text2img/controlnet/reference
