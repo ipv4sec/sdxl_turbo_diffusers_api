@@ -1,5 +1,8 @@
 controlnet_aux==0.0.7
-diffusers==0.26.0
+diffusers==0.26.3
 Flask==3.0.1
 Pillow==10.2.0
 torch==2.2.0
+numpy==1.26.4
+accelerate==0.28.0
+mediapipe==0.10.11
