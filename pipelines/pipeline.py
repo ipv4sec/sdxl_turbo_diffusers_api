@@ -3,12 +3,16 @@
 import os
 from typing import List
 
+import cv2
+import numpy as np
 import torch
 from PIL import Image
 from controlnet_aux.pidi import PidiNetDetector
 from diffusers import EulerAncestralDiscreteScheduler, DPMSolverSinglestepScheduler, ControlNetModel, \
-    StableDiffusionXLControlNetPipeline
-from diffusers import StableDiffusionXLPipeline, StableDiffusionXLAdapterPipeline, T2IAdapter
+    StableDiffusionXLControlNetPipeline, AutoPipelineForText2Image, AutoPipelineForInpainting
+from diffusers import StableDiffusionXLAdapterPipeline, T2IAdapter
+
+from pipelines.stablediffusion_xl_reference_pipeline import StableDiffusionXLReferencePipeline
 
 
 # -*- coding: utf-8 -*-
@@ -37,7 +41,9 @@ class Pipeline:
 
     # load model
     def load_model(self):
-        self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
+        # self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
+        #                                                             variant="fp16").to("cuda")
+        self.__pipeline = AutoPipelineForText2Image.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
                                                                     variant="fp16").to("cuda")
         self.__pipeline.scheduler = DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config)
         self.__adapter_sketch = T2IAdapter.from_pretrained(self.__adapter_sketch_path, torch_dtype=torch.float16,
@@ -50,16 +56,15 @@ class Pipeline:
             "cuda")
         self.__pipeline_adapter.scheduler = EulerAncestralDiscreteScheduler.from_config(
             self.__pipeline_adapter.scheduler.config)
-        self.__pipeline_reference = None
-        # StableDiffusionXLReferencePipeline(
-        #     vae=self.__pipeline.vae,
-        #     text_encoder=self.__pipeline.text_encoder,
-        #     tokenizer=self.__pipeline.tokenizer,
-        #     unet=self.__pipeline.unet,
-        #     scheduler=EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config),
-        #     text_encoder_2=self.__pipeline.text_encoder_2,
-        #     tokenizer_2=self.__pipeline.tokenizer_2,
-        # ).to("cuda")
+        self.__pipeline_reference = StableDiffusionXLReferencePipeline(
+            vae=self.__pipeline.vae,
+            text_encoder=self.__pipeline.text_encoder,
+            tokenizer=self.__pipeline.tokenizer,
+            unet=self.__pipeline.unet,
+            scheduler=EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config),
+            text_encoder_2=self.__pipeline.text_encoder_2,
+            tokenizer_2=self.__pipeline.tokenizer_2,
+        ).to("cuda")
         self.canny_controlnet = ControlNetModel.from_pretrained(
             "diffusers/controlnet-canny-sdxl-1.0",
             torch_dtype=torch.float16,
@@ -75,7 +80,7 @@ class Pipeline:
             tokenizer_2=self.__pipeline.tokenizer_2,
             controlnet=self.canny_controlnet,
         ).to("cuda")
-        self.__pipeline_paint = None
+        self.__pipeline_paint = AutoPipelineForInpainting.from_pipe(self.__pipeline)
         # AutoPipelineForInpainting.from_pretrained(
         #     self.__base_model_path,
         #     torch_dtype=torch.float16,
@@ -140,9 +145,17 @@ class Pipeline:
                        negative_prompt: str = "", num_inference_steps: int = 5, guidance_scale: float = 7) -> str:
         self.__jobs += 1
         try:
+            image = np.array(image)
+            low_threshold = 100
+            high_threshold = 200
+            image = cv2.Canny(image, low_threshold, high_threshold)
+            image = image[:, :, None]
+            image = np.concatenate([image, image, image], axis=2)
+            canny_image = Image.fromarray(image)
+            canny_image = canny_image.resize((width, height))
             return self.__pipeline_canny(
                 prompt,
-                image=image,
+                image=canny_image,
                 width=width,
                 height=height,
                 num_inference_steps=num_inference_steps,

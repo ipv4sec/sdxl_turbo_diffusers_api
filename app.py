@@ -30,18 +30,6 @@ def sdapi_t2i():
     logger.info(f'get prompt: {prompt} --------> start generating……')
     response_data = {"images": []}
     if "alwayson_scripts" in json_data:
-        if json_data.get("mask") is not None:
-            # 局部重绘
-            init_image = Image.open(
-                BytesIO(base64.b64decode(json_data['init_images'][0])))
-            mask_image = Image.open(
-                BytesIO(base64.b64decode(json_data['mask'])))
-            image = pipe_inst.text2img_paint(prompt=prompt, init_image=init_image, mask_image=mask_image,
-                                             negative_prompt=negative_prompt,
-                                             guidance_scale=guidance_scale, num_inference_steps=num_inference_steps,
-                                             width=width, height=height)
-            response_data["images"].append(image_to_base64(image))
-            return jsonify(response_data)
         if json_data['alwayson_scripts']['ControlNet']['args'][0]['module'] == "canny":
             # Canny
             input_image = Image.open(
@@ -71,6 +59,39 @@ def sdapi_t2i():
                                                  width=width, height=height)
             response_data["images"].append(image_to_base64(image))
             logger.info('--------> finished')
+            return jsonify(response_data)
+    else:
+        images = pipe_inst.text2img(prompt=prompt, negative_prompt=negative_prompt,
+                                    num_inference_steps=num_inference_steps, guidance_scale=guidance_scale, width=width,
+                                    height=height)
+        response_data["images"].append(image_to_base64(images[0]))
+    return jsonify(response_data)
+
+
+@app.route("/sdapi/v1/img2img", methods=['POST'])
+def sdapi_i2i():
+    json_data = request.get_json(force=True, silent=True) or {}
+    prompt = json_data.get('prompt', '')
+    negative_prompt = json_data.get('negative_prompt', "")
+    guidance_scale = float(json_data.get('cfg_scale', 1.5))
+    adapter_conditioning_scale = float(json_data.get('adapter_conditioning_scale', 0.9))
+    num_inference_steps = int(json_data.get('steps', 5))
+    width = int(json_data.get('width', 512))
+    height = int(json_data.get('height', 512))
+    logger.info(f'get prompt: {prompt} --------> start generating……')
+    response_data = {"images": []}
+    if "alwayson_scripts" in json_data:
+        if json_data.get("mask") is not None:
+            # 局部重绘
+            init_image = Image.open(
+                BytesIO(base64.b64decode(json_data['init_images'][0])))
+            mask_image = Image.open(
+                BytesIO(base64.b64decode(json_data['mask'])))
+            image = pipe_inst.text2img_paint(prompt=prompt, init_image=init_image, mask_image=mask_image,
+                                             negative_prompt=negative_prompt,
+                                             guidance_scale=guidance_scale, num_inference_steps=num_inference_steps,
+                                             width=width, height=height)
+            response_data["images"].append(image_to_base64(image))
             return jsonify(response_data)
     else:
         images = pipe_inst.text2img(prompt=prompt, negative_prompt=negative_prompt,
