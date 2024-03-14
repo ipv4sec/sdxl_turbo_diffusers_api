@@ -7,10 +7,8 @@ import torch
 from PIL import Image
 from controlnet_aux.pidi import PidiNetDetector
 from diffusers import EulerAncestralDiscreteScheduler, DPMSolverSinglestepScheduler, ControlNetModel, \
-    StableDiffusionXLControlNetPipeline, AutoPipelineForInpainting
+    StableDiffusionXLControlNetPipeline
 from diffusers import StableDiffusionXLPipeline, StableDiffusionXLAdapterPipeline, T2IAdapter
-
-from pipelines.stablediffusion_xl_reference_pipeline import StableDiffusionXLReferencePipeline
 
 
 # -*- coding: utf-8 -*-
@@ -52,15 +50,16 @@ class Pipeline:
             "cuda")
         self.__pipeline_adapter.scheduler = EulerAncestralDiscreteScheduler.from_config(
             self.__pipeline_adapter.scheduler.config)
-        self.__pipeline_reference = StableDiffusionXLReferencePipeline(
-            vae=self.__pipeline.vae,
-            text_encoder=self.__pipeline.text_encoder,
-            tokenizer=self.__pipeline.tokenizer,
-            unet=self.__pipeline.unet,
-            scheduler=EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config),
-            text_encoder_2=self.__pipeline.text_encoder_2,
-            tokenizer_2=self.__pipeline.tokenizer_2,
-        ).to("cuda")
+        self.__pipeline_reference = None
+        # StableDiffusionXLReferencePipeline(
+        #     vae=self.__pipeline.vae,
+        #     text_encoder=self.__pipeline.text_encoder,
+        #     tokenizer=self.__pipeline.tokenizer,
+        #     unet=self.__pipeline.unet,
+        #     scheduler=EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config),
+        #     text_encoder_2=self.__pipeline.text_encoder_2,
+        #     tokenizer_2=self.__pipeline.tokenizer_2,
+        # ).to("cuda")
         self.canny_controlnet = ControlNetModel.from_pretrained(
             "diffusers/controlnet-canny-sdxl-1.0",
             torch_dtype=torch.float16,
@@ -76,11 +75,12 @@ class Pipeline:
             tokenizer_2=self.__pipeline.tokenizer_2,
             controlnet=self.canny_controlnet,
         ).to("cuda")
-        self.__pipeline_paint = AutoPipelineForInpainting.from_pretrained(
-            self.__base_model_path,
-            torch_dtype=torch.float16,
-            variant="fp16"
-        ).to("cuda")
+        self.__pipeline_paint = None
+        # AutoPipelineForInpainting.from_pretrained(
+        #     self.__base_model_path,
+        #     torch_dtype=torch.float16,
+        #     variant="fp16"
+        # ).to("cuda")
         self.generator = torch.Generator(device="cuda").manual_seed(0)
         self.__pidinet = PidiNetDetector.from_pretrained(self.__pidi_net_path).to("cuda")
 
