@@ -66,15 +66,17 @@ class Pipeline:
             torch_dtype=torch.float16,
             use_safetensors=True
         )
-        self.__pipeline_canny = StableDiffusionXLControlNetPipeline.from_pretrained(
-            self.__base_model_path,
+        self.__pipeline_canny = StableDiffusionXLControlNetPipeline(
             vae=self.__pipeline.vae,
-            guidance_scale=7,
-            torch_dtype=torch.float16,
+            text_encoder=self.__pipeline.text_encoder,
+            tokenizer=self.__pipeline.tokenizer,
+            unet=self.__pipeline.unet,
+            scheduler=EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config),
+            text_encoder_2=self.__pipeline.text_encoder_2,
+            tokenizer_2=self.__pipeline.tokenizer_2,
             controlnet=self.canny_controlnet,
-            variant="fp16"
         ).to("cuda")
-        self.__pipeline_paint = AutoPipelineForInpainting.from_pretrained(
+        self.__pipeline_paint = AutoPipelineForInpainting(
             self.__base_model_path,
             torch_dtype=torch.float16,
             variant="fp16"
