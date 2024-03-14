@@ -67,7 +67,7 @@ class Pipeline:
             use_safetensors=True
         )
         self.__pipeline_canny = StableDiffusionXLControlNetPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0",
+            self.__base_model_path,
             vae=self.__pipeline.vae,
             guidance_scale=7,
             torch_dtype=torch.float16,
@@ -75,7 +75,7 @@ class Pipeline:
             variant="fp16"
         ).to("cuda")
         self.__pipeline_paint = AutoPipelineForInpainting.from_pretrained(
-            "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
+            self.__base_model_path,
             torch_dtype=torch.float16,
             variant="fp16"
         ).to("cuda")
