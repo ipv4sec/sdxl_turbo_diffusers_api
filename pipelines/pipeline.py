@@ -76,7 +76,7 @@ class Pipeline:
             tokenizer_2=self.__pipeline.tokenizer_2,
             controlnet=self.canny_controlnet,
         ).to("cuda")
-        self.__pipeline_paint = AutoPipelineForInpainting(
+        self.__pipeline_paint = AutoPipelineForInpainting.from_pretrained(
             self.__base_model_path,
             torch_dtype=torch.float16,
             variant="fp16"
