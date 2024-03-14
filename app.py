@@ -30,7 +30,7 @@ def sdapi_t2i():
     logger.info(f'get prompt: {prompt} --------> start generating……')
     response_data = {"images": []}
     if "alwayson_scripts" in json_data:
-        if json_data['mask'] is not None:
+        if json_data.get("mask") is not None:
             # 局部重绘
             init_image = Image.open(
                 BytesIO(base64.b64decode(json_data['init_images'][0])))
