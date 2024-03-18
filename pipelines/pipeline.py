@@ -56,6 +56,7 @@ class Pipeline:
             "cuda")
         self.__pipeline_adapter.scheduler = EulerAncestralDiscreteScheduler.from_config(
             self.__pipeline_adapter.scheduler.config)
+        # self._reference_vae = AutoencoderKL.from_pretrained("stabilityai/sdxl-vae").to("cuda").to(torch.float16)
         self.__pipeline_reference = StableDiffusionXLReferencePipeline(
             vae=self.__pipeline.vae,
             text_encoder=self.__pipeline.text_encoder,
