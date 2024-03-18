@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-import io
 import base64
 from io import BytesIO
+
 
 def image_to_base64(image, format="JPEG"):
     # 将图像数据编码为 Base64 字符串
