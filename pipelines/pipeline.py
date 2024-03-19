@@ -176,7 +176,7 @@ class Pipeline:
                 image=canny_image,
                 width=width,
                 height=height,
-                num_inference_steps=num_inference_steps,
+                num_inference_steps=4,
                 controlnet_conditioning_scale=0.5,
                 guidance_scale=guidance_scale
             ).images[0]
