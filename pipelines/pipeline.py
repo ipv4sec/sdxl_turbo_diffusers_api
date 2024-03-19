@@ -8,8 +8,8 @@ import numpy as np
 import torch
 from PIL import Image
 from controlnet_aux.pidi import PidiNetDetector
-from diffusers import EulerAncestralDiscreteScheduler, DPMSolverSinglestepScheduler, ControlNetModel, \
-    StableDiffusionXLControlNetPipeline, AutoPipelineForText2Image, AutoPipelineForInpainting
+from diffusers import EulerAncestralDiscreteScheduler, DPMSolverSinglestepScheduler, AutoPipelineForInpainting, \
+    ControlNetModel, StableDiffusionXLControlNetPipeline, AutoencoderKL, StableDiffusionXLPipeline
 from diffusers import StableDiffusionXLAdapterPipeline, T2IAdapter
 
 from pipelines.stablediffusion_xl_reference_pipeline import StableDiffusionXLReferencePipeline
@@ -41,10 +41,10 @@ class Pipeline:
 
     # load model
     def load_model(self):
-        # self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
-        #                                                             variant="fp16").to("cuda")
-        self.__pipeline = AutoPipelineForText2Image.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
+        self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
                                                                     variant="fp16").to("cuda")
+        # self.__pipeline = AutoPipelineForText2Image.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
+        #                                                             variant="fp16").to("cuda")
         self.__pipeline.scheduler = DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config)
         self.__adapter_sketch = T2IAdapter.from_pretrained(self.__adapter_sketch_path, torch_dtype=torch.float16,
                                                            varient="fp16").to('cuda')
@@ -62,24 +62,41 @@ class Pipeline:
             text_encoder=self.__pipeline.text_encoder,
             tokenizer=self.__pipeline.tokenizer,
             unet=self.__pipeline.unet,
-            scheduler=EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config),
+            scheduler=DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config),
             text_encoder_2=self.__pipeline.text_encoder_2,
             tokenizer_2=self.__pipeline.tokenizer_2,
         ).to("cuda")
-        self.canny_controlnet = ControlNetModel.from_pretrained(
+        # self.canny_controlnet = ControlNetModel.from_pretrained(
+        #     "diffusers/controlnet-canny-sdxl-1.0",
+        #     torch_dtype=torch.float16,
+        #     use_safetensors=True
+        # )
+        # self.__pipeline_canny = StableDiffusionXLControlNetPipeline(
+        #     vae=self.__pipeline.vae,
+        #     text_encoder=self.__pipeline.text_encoder,
+        #     tokenizer=self.__pipeline.tokenizer,
+        #     unet=self.__pipeline.unet,
+        #     scheduler=DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config,
+        #                                                        ),
+        #     text_encoder_2=self.__pipeline.text_encoder_2,
+        #     tokenizer_2=self.__pipeline.tokenizer_2,
+        #     controlnet=self.canny_controlnet,
+        # ).to("cuda")
+        controlnet = ControlNetModel.from_pretrained(
             "diffusers/controlnet-canny-sdxl-1.0",
             torch_dtype=torch.float16,
-            use_safetensors=True
+            varient="fp16"
         )
+        vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
         self.__pipeline_canny = StableDiffusionXLControlNetPipeline(
-            vae=self.__pipeline.vae,
+            vae=vae,
             text_encoder=self.__pipeline.text_encoder,
             tokenizer=self.__pipeline.tokenizer,
             unet=self.__pipeline.unet,
-            scheduler=EulerAncestralDiscreteScheduler.from_config(self.__pipeline.scheduler.config),
+            scheduler=DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config),
             text_encoder_2=self.__pipeline.text_encoder_2,
             tokenizer_2=self.__pipeline.tokenizer_2,
-            controlnet=self.canny_controlnet,
+            controlnet=controlnet,
         ).to("cuda")
         self.__pipeline_paint = AutoPipelineForInpainting.from_pipe(self.__pipeline)
         # AutoPipelineForInpainting.from_pretrained(
@@ -160,7 +177,9 @@ class Pipeline:
                 width=width,
                 height=height,
                 num_inference_steps=num_inference_steps,
-                guidance_scale=guidance_scale).images[0]
+                controlnet_conditioning_scale=0.5,
+                guidance_scale=guidance_scale
+            ).images[0]
         except Exception as e:
             raise e
         finally:

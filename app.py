@@ -35,7 +35,7 @@ def sdapi_t2i():
             input_image = Image.open(
                 BytesIO(base64.b64decode(json_data['alwayson_scripts']['ControlNet']['args'][0]['input_image'])))
             image = pipe_inst.text2img_canny(prompt=prompt, image=input_image, negative_prompt=negative_prompt,
-                                             guidance_scale=guidance_scale, num_inference_steps=num_inference_steps,
+                                             guidance_scale=5, num_inference_steps=5,
                                              width=width, height=height)
             response_data["images"].append(image_to_base64(image))
             return jsonify(response_data)
@@ -62,7 +62,7 @@ def sdapi_t2i():
             return jsonify(response_data)
     else:
         images = pipe_inst.text2img(prompt=prompt, negative_prompt=negative_prompt,
-                                    num_inference_steps=num_inference_steps, guidance_scale=guidance_scale, width=width,
+                                    num_inference_steps=5, guidance_scale=2.5, width=width,
                                     height=height)
         response_data["images"].append(image_to_base64(images[0]))
     return jsonify(response_data)
