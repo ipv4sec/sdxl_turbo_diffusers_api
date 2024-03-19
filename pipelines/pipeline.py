@@ -95,7 +95,7 @@ class Pipeline:
         self.__jobs += 1
         try:
             return self.__pipeline(prompt=prompt, negative_prompt=negative_prompt,
-                                   num_inference_steps=num_inference_steps, guidance_scale=guidance_scale, width=width,
+                                   num_inference_steps=5, guidance_scale=2.5, width=width,
                                    height=height).images
         except Exception as e:
             raise e
@@ -112,7 +112,7 @@ class Pipeline:
                 image, detect_resolution=1024, image_resolution=1024, apply_filter=True
             )
             images = self.__pipeline_adapter(prompt=prompt, negative_prompt=negative_prompt, image=input_image_sketch,
-                                             num_inference_steps=num_inference_steps, guidance_scale=guidance_scale,
+                                             num_inference_steps=5, guidance_scale=4,
                                              adapter_conditioning_scale=adapter_conditioning_scale, width=width,
                                              height=height).images
             images.append(input_image_sketch)
@@ -131,8 +131,8 @@ class Pipeline:
                                              prompt=prompt,
                                              width=width,
                                              height=height,
-                                             num_inference_steps=num_inference_steps,
-                                             guidance_scale=guidance_scale,
+                                             num_inference_steps=5,
+                                             guidance_scale=1.5,
                                              reference_attn=True,
                                              reference_adain=True).images[0]
         except Exception as e:
@@ -157,9 +157,9 @@ class Pipeline:
                 image=canny_image,
                 width=width,
                 height=height,
-                num_inference_steps=num_inference_steps,
+                num_inference_steps=5,
                 controlnet_conditioning_scale=0.5,
-                guidance_scale=guidance_scale).images[0]
+                guidance_scale=3).images[0]
         except Exception as e:
             raise e
         finally:
