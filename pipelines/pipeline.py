@@ -8,9 +8,9 @@ import numpy as np
 import torch
 from PIL import Image
 from controlnet_aux.pidi import PidiNetDetector
-from diffusers import EulerAncestralDiscreteScheduler, DPMSolverSinglestepScheduler, AutoPipelineForInpainting, \
-    ControlNetModel, StableDiffusionXLControlNetPipeline, AutoencoderKL, StableDiffusionXLPipeline
-from diffusers import StableDiffusionXLAdapterPipeline, T2IAdapter
+from diffusers import DPMSolverSinglestepScheduler, ControlNetModel, \
+    StableDiffusionXLControlNetPipeline, AutoPipelineForText2Image, AutoPipelineForInpainting
+from diffusers import StableDiffusionXLAdapterPipeline, T2IAdapter, AutoencoderKL
 
 from pipelines.stablediffusion_xl_reference_pipeline import StableDiffusionXLReferencePipeline
 
@@ -41,28 +41,43 @@ class Pipeline:
 
     # load model
     def load_model(self):
-        self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
-                                                                    variant="fp16").to("cuda")
+        # self.__pipeline = StableDiffusionXLPipeline.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
+        #                                                             variant="fp16").to("cuda")
         # self.__pipeline = AutoPipelineForText2Image.from_pretrained(self.__base_model_path, torch_dtype=torch.float16,
         #                                                             variant="fp16").to("cuda")
+        # Base pipeline
+        self.__pipeline = AutoPipelineForText2Image.from_pretrained(
+            self.__base_model_path,
+            torch_dtype=torch.float16,
+            variant="fp16",
+            vae=AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
+        ).to("cuda")
         self.__pipeline.scheduler = DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config)
-        self.__adapter_sketch = T2IAdapter.from_pretrained(self.__adapter_sketch_path, torch_dtype=torch.float16,
-                                                           varient="fp16").to('cuda')
+        # T2I Adapter Sketch pipeline
         # 使用同一个 pipeline.compontent 会有干扰
+        self.__pidinet = PidiNetDetector.from_pretrained(self.__pidi_net_path).to("cuda")
         self.__pipeline_adapter = StableDiffusionXLAdapterPipeline.from_pretrained(self.__base_model_path,
                                                                                    torch_dtype=torch.float16,
                                                                                    variant="fp16",
-                                                                                   adapter=self.__adapter_sketch).to(
-            "cuda")
-        self.__pipeline_adapter.scheduler = EulerAncestralDiscreteScheduler.from_config(
-            self.__pipeline_adapter.scheduler.config)
-        # self._reference_vae = AutoencoderKL.from_pretrained("stabilityai/sdxl-vae").to("cuda").to(torch.float16)
+                                                                                   adapter=T2IAdapter.from_pretrained(
+                                                                                       self.__adapter_sketch_path,
+                                                                                       torch_dtype=torch.float16,
+                                                                                       variant="fp16").to('cuda'),
+                                                                                   vae=AutoencoderKL.from_pretrained(
+                                                                                       "madebyollin/sdxl-vae-fp16-fix",
+                                                                                       torch_dtype=torch.float16),
+                                                                                   scheduler=DPMSolverSinglestepScheduler.from_pretrained(
+                                                                                       self.__base_model_path,
+                                                                                       subfolder='scheduler')
+                                                                                   ).to("cuda")
+
+        # # Reference pipeline
         self.__pipeline_reference = StableDiffusionXLReferencePipeline(
             vae=self.__pipeline.vae,
             text_encoder=self.__pipeline.text_encoder,
             tokenizer=self.__pipeline.tokenizer,
             unet=self.__pipeline.unet,
-            scheduler=DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config),
+            scheduler=self.__pipeline.scheduler,
             text_encoder_2=self.__pipeline.text_encoder_2,
             tokenizer_2=self.__pipeline.tokenizer_2,
         ).to("cuda")
@@ -85,7 +100,8 @@ class Pipeline:
         controlnet = ControlNetModel.from_pretrained(
             "diffusers/controlnet-canny-sdxl-1.0",
             torch_dtype=torch.float16,
-            varient="fp16"
+            variant="fp16",
+            use_safetensors=True
         )
         vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
         self.__pipeline_canny = StableDiffusionXLControlNetPipeline(
@@ -93,23 +109,17 @@ class Pipeline:
             text_encoder=self.__pipeline.text_encoder,
             tokenizer=self.__pipeline.tokenizer,
             unet=self.__pipeline.unet,
-            scheduler=DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config),
+            scheduler=self.__pipeline.scheduler,
             text_encoder_2=self.__pipeline.text_encoder_2,
             tokenizer_2=self.__pipeline.tokenizer_2,
             controlnet=controlnet,
         ).to("cuda")
         self.__pipeline_paint = AutoPipelineForInpainting.from_pipe(self.__pipeline)
-        # AutoPipelineForInpainting.from_pretrained(
-        #     self.__base_model_path,
-        #     torch_dtype=torch.float16,
-        #     variant="fp16"
-        # ).to("cuda")
         self.generator = torch.Generator(device="cuda").manual_seed(0)
-        self.__pidinet = PidiNetDetector.from_pretrained(self.__pidi_net_path).to("cuda")
 
     # text to image
     def text2img(self, prompt: str, width: int = 512, height: int = 512, negative_prompt: str = "",
-                 num_inference_steps: int = 5, guidance_scale: float = 1.5) -> List[str]:
+                 num_inference_steps: int = 5, guidance_scale: float = 3) -> List[str]:
         self.__jobs += 1
         try:
             return self.__pipeline(prompt=prompt, negative_prompt=negative_prompt,
@@ -122,14 +132,13 @@ class Pipeline:
 
     # text to image with sketch adapter
     def text2img_sketch(self, prompt: str, image: Image, width: int = 512, height: int = 512, negative_prompt: str = "",
-                        num_inference_steps: int = 5, guidance_scale: float = 1.5, adapter_conditioning_scale=0.9) -> \
+                        num_inference_steps: int = 5, guidance_scale: float = 4, adapter_conditioning_scale=0.9) -> \
             List[str]:
         self.__jobs += 1
         try:
             input_image_sketch = self.__pidinet(
                 image, detect_resolution=1024, image_resolution=1024, apply_filter=True
             )
-            input_image_sketch.save('sketch.png')
             images = self.__pipeline_adapter(prompt=prompt, negative_prompt=negative_prompt, image=input_image_sketch,
                                              num_inference_steps=num_inference_steps, guidance_scale=guidance_scale,
                                              adapter_conditioning_scale=adapter_conditioning_scale, width=width,
@@ -160,7 +169,7 @@ class Pipeline:
             self.__jobs -= 1
 
     def text2img_canny(self, prompt: str, image: Image, width: int = 512, height: int = 512,
-                       negative_prompt: str = "", num_inference_steps: int = 5, guidance_scale: float = 7) -> str:
+                       negative_prompt: str = "", num_inference_steps: int = 5, guidance_scale: float = 4) -> str:
         self.__jobs += 1
         try:
             image = np.array(image)
@@ -186,7 +195,7 @@ class Pipeline:
             self.__jobs -= 1
 
     def text2img_paint(self, prompt: str, init_image: Image, mask_image: Image, width: int = 512, height: int = 512,
-                       negative_prompt: str = "", num_inference_steps: int = 5, guidance_scale: float = 8) -> str:
+                       negative_prompt: str = "", num_inference_steps: int = 5, guidance_scale: float = 4) -> str:
         self.__jobs += 1
         try:
             return self.__pipeline_paint(
