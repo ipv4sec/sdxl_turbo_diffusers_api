@@ -7,9 +7,10 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
+from controlnet_aux import OpenposeDetector
 from controlnet_aux.pidi import PidiNetDetector
 from diffusers import DPMSolverSinglestepScheduler, ControlNetModel, \
-    StableDiffusionXLControlNetPipeline, AutoPipelineForText2Image, AutoPipelineForInpainting
+    StableDiffusionXLControlNetPipeline, AutoPipelineForText2Image, AutoPipelineForInpainting, UniPCMultistepScheduler
 from diffusers import StableDiffusionXLAdapterPipeline, T2IAdapter, AutoencoderKL
 
 from pipelines.stablediffusion_xl_reference_pipeline import StableDiffusionXLReferencePipeline
@@ -116,6 +117,25 @@ class Pipeline:
         ).to("cuda")
         self.__pipeline_paint = AutoPipelineForInpainting.from_pipe(self.__pipeline)
         self.generator = torch.Generator(device="cuda").manual_seed(0)
+        self.openpose_detector = OpenposeDetector.from_pretrained(
+            "lllyasviel/ControlNet")
+        openpose_controlnet = [
+            ControlNetModel.from_pretrained(
+                "thibaud/controlnet-openpose-sdxl-1.0",
+                torch_dtype=torch.float16
+            ),
+            controlnet,
+        ]
+        self.__pipeline_openpose = StableDiffusionXLControlNetPipeline(
+            vae=self.__pipeline.vae,
+            text_encoder=self.__pipeline.text_encoder,
+            tokenizer=self.__pipeline.tokenizer,
+            unet=self.__pipeline.unet,
+            scheduler=UniPCMultistepScheduler.from_config(self.__pipeline.scheduler.config),
+            text_encoder_2=self.__pipeline.text_encoder_2,
+            tokenizer_2=self.__pipeline.tokenizer_2,
+            controlnet=openpose_controlnet,
+        ).to("cuda")
 
     # text to image
     def text2img(self, prompt: str, width: int = 512, height: int = 512, negative_prompt: str = "",
@@ -208,6 +228,28 @@ class Pipeline:
                 num_inference_steps=num_inference_steps,
                 strength=0.99,
                 generator=self.generator,
+            ).images[0]
+        except Exception as e:
+            raise e
+        finally:
+            self.__jobs -= 1
+
+    def text2img_openpose(self, prompt: str, init_image: Image, ref_image: Image, width: int = 512,
+                          height: int = 512,
+                          negative_prompt: str = "", num_inference_steps: int = 5) -> str:
+        self.__jobs += 1
+        try:
+            return self.__pipeline_openpose(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                ref_image=ref_image,
+                image=[ref_image, init_image],
+                width=width,
+                height=height,
+                num_inference_steps=num_inference_steps,
+                generator=self.generator,
+                num_images_per_prompt=3,
+                controlnet_conditioning_scale=1.0,
             ).images[0]
         except Exception as e:
             raise e

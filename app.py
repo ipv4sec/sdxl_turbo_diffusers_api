@@ -30,6 +30,21 @@ def sdapi_t2i():
     logger.info(f'get prompt: {prompt} --------> start generating……')
     response_data = {"images": []}
     if "alwayson_scripts" in json_data:
+        if len(json_data['alwayson_scripts']['ControlNet']['args']) > 1:
+            ref_image = Image.open(
+                BytesIO(base64.b64decode(json_data['alwayson_scripts']['ControlNet']['args'][0]['input_image'])))
+            guge_image = Image.open(
+                BytesIO(base64.b64decode(json_data['alwayson_scripts']['ControlNet']['args'][1]['input_image'])))
+            image = pipe_inst.text2img_openpose(
+                prompt=prompt,
+                init_image=guge_image,
+                ref_image=ref_image,
+                negative_prompt=negative_prompt,
+                num_inference_steps=5,
+                width=width,
+                height=height)
+            response_data["images"].append(image_to_base64(image))
+            return jsonify(response_data)
         if json_data['alwayson_scripts']['ControlNet']['args'][0]['module'] == "canny":
             # Canny
             input_image = Image.open(
