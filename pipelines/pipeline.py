@@ -111,6 +111,7 @@ class Pipeline:
                  num_inference_steps: int = 5, guidance_scale: float = 3) -> List[str]:
         self.__jobs += 1
         try:
+            self.__pipeline.unload_lora_weights()
             a = utils.prompt.parser(prompt)
             if a.lora is not None:
                 self.load_lora(self.__pipeline, a.lora.value, a.lora.scale)
@@ -135,6 +136,7 @@ class Pipeline:
             input_image_sketch = self.__pidinet(
                 image, detect_resolution=1024, image_resolution=1024, apply_filter=True
             )
+            self.__pipeline_adapter.unload_lora_weights()
             a = utils.prompt.parser(prompt)
             if a.lora is not None:
                 self.load_lora(self.__pipeline_adapter, a.lora.value, a.lora.scale)
@@ -159,6 +161,7 @@ class Pipeline:
                            control_guidance_start: float = 0.6, control_guidance_end: float = 1) -> str:
         self.__jobs += 1
         try:
+            self.__pipeline_reference.unload_lora_weights()
             a = utils.prompt.parser(prompt)
             if a.lora is not None:
                 self.load_lora(self.__pipeline_reference, a.lora.value, a.lora.scale)
@@ -187,6 +190,7 @@ class Pipeline:
             image = np.concatenate([image, image, image], axis=2)
             canny_image = Image.fromarray(image)
             canny_image = canny_image.resize((width, height))
+            self.__pipeline_canny.unload_lora_weights()
             a = utils.prompt.parser(prompt)
             if a.lora is not None:
                 self.load_lora(self.__pipeline_canny, a.lora.value, a.lora.scale)
