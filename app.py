@@ -80,25 +80,24 @@ def sdapi_i2i():
     height = int(json_data.get('height', 512))
     logger.info(f'get prompt: {prompt} --------> start generating……')
     response_data = {"images": []}
-    if "alwayson_scripts" in json_data:
-        if json_data.get("mask") is not None:
-            # 局部重绘
-            init_image = Image.open(
-                BytesIO(base64.b64decode(json_data['init_images'][0])))
-            mask_image = Image.open(
-                BytesIO(base64.b64decode(json_data['mask'])))
-            image = pipe_inst.text2img_paint(prompt=prompt, init_image=init_image, mask_image=mask_image,
-                                             negative_prompt=negative_prompt,
-                                             guidance_scale=guidance_scale, num_inference_steps=num_inference_steps,
-                                             width=width, height=height)
-            response_data["images"].append(image_to_base64(image))
-            return jsonify(response_data)
+    if json_data.get("mask") is not None:
+        # 局部重绘
+        init_image = Image.open(
+            BytesIO(base64.b64decode(json_data['init_images'][0])))
+        mask_image = Image.open(
+            BytesIO(base64.b64decode(json_data['mask'])))
+        image = pipe_inst.text2img_paint(prompt=prompt, init_image=init_image, mask_image=mask_image,
+                                         negative_prompt=negative_prompt,
+                                         guidance_scale=guidance_scale, num_inference_steps=num_inference_steps,
+                                         width=width, height=height)
+        response_data["images"].append(image_to_base64(image))
+        return jsonify(response_data)
     else:
         images = pipe_inst.text2img(prompt=prompt, negative_prompt=negative_prompt,
                                     num_inference_steps=num_inference_steps, guidance_scale=guidance_scale, width=width,
                                     height=height)
         response_data["images"].append(image_to_base64(images[0]))
-    return jsonify(response_data)
+        return jsonify(response_data)
 
 
 @app.route("/sdapi/v1/progress", methods=['get'])
