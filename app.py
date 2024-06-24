@@ -84,12 +84,12 @@ def sdapi_i2i():
         init_image = init_image.replace("data:image/png;base64,", '')
         init_image = init_image.replace('data:image/webp;base64,', '')
         init_image = Image.open(
-            BytesIO(base64.b64decode(init_image)))
+            BytesIO(base64.b64decode(init_image))).convert('RGB')
         mask_image = json_data['mask']
         mask_image = mask_image.replace('data:image/png;base64,', '')
         mask_image = mask_image.replace('data:image/webp;base64,', '')
         mask_image = Image.open(
-            BytesIO(base64.b64decode(mask_image)))
+            BytesIO(base64.b64decode(mask_image))).convert('RGB')
         image = pipe_inst.text2img_paint(prompt=prompt, init_image=init_image, mask_image=mask_image,
                                          negative_prompt=negative_prompt,
                                          guidance_scale=guidance_scale, num_inference_steps=num_inference_steps,
