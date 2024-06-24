@@ -16,7 +16,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(leveln
 logger = logging.getLogger(__name__)
 
 
-# 兼容 sd webui api
 @app.route("/sdapi/v1/txt2img", methods=['POST'])
 def sdapi_t2i():
     json_data = request.get_json(force=True, silent=True) or {}
@@ -74,7 +73,6 @@ def sdapi_i2i():
     prompt = json_data.get('prompt', '')
     negative_prompt = json_data.get('negative_prompt', "")
     guidance_scale = float(json_data.get('cfg_scale', 1.5))
-    adapter_conditioning_scale = float(json_data.get('adapter_conditioning_scale', 0.9))
     num_inference_steps = int(json_data.get('steps', 5))
     width = int(json_data.get('width', 512))
     height = int(json_data.get('height', 512))
@@ -82,10 +80,16 @@ def sdapi_i2i():
     response_data = {"images": []}
     if json_data.get("mask") is not None:
         # 局部重绘
+        init_image = json_data['init_images'][0]
+        init_image = init_image.replace("data:image/png;base64,", '')
+        init_image = init_image.replace('data:image/webp;base64,', '')
         init_image = Image.open(
-            BytesIO(base64.b64decode(json_data['init_images'][0])))
+            BytesIO(base64.b64decode(init_image))).convert('RGB')
+        mask_image = json_data['mask']
+        mask_image = mask_image.replace('data:image/png;base64,', '')
+        mask_image = mask_image.replace('data:image/webp;base64,', '')
         mask_image = Image.open(
-            BytesIO(base64.b64decode(json_data['mask'])))
+            BytesIO(base64.b64decode(mask_image))).convert('RGB')
         image = pipe_inst.text2img_paint(prompt=prompt, init_image=init_image, mask_image=mask_image,
                                          negative_prompt=negative_prompt,
                                          guidance_scale=guidance_scale, num_inference_steps=num_inference_steps,
