@@ -119,7 +119,7 @@ class Pipeline:
             return self.__pipeline(
                 prompt=a.value,
                 negative_prompt=negative_prompt,
-                num_inference_steps=num_inference_steps,
+                num_inference_steps=5,
                 guidance_scale=2.5,
                 width=width,
                 height=height).images
