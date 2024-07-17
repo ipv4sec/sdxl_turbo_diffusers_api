@@ -23,6 +23,11 @@ class Pipeline:
     __base_model_path = ""
     __pidi_net_path = ""
     __lora_path = ""
+    txt2img_pipeline_loaded_loras = []
+    sketch_pipeline_loaded_loras = []
+    reference_pipeline_loaded_loras = []
+    canny_pipeline_loaded_loras = []
+    paint_pipeline_loaded_loras = []
 
     def __init__(self):
         self.get_model_path_from_env()
@@ -31,7 +36,7 @@ class Pipeline:
     def get_jobs(self) -> int:
         return self.__jobs
 
-    # Config and load model 
+    # Config and load model
     def prepare(self):
         self.load_model()
 
@@ -42,12 +47,16 @@ class Pipeline:
         self.__adapter_sketch_path = os.environ.get("AdapterSketchPath", "TencentARC/t2i-adapter-sketch-sdxl-1.0")
         self.__lora_path = os.environ.get("LoraPath", "")
 
-    def load_lora(self, pipeline, lora: str, scale: float):
+    def load_lora(self, pipeline, lora: str, scale: float, loaded_loras):
         lora_path = "{}/{}.safetensors".format(self.__lora_path, lora)
         if self.__lora_path.endswith("/"):
             lora_path = "{}{}.safetensors".format(self.__lora_path, lora)
-        pipeline.load_lora_weights(lora_path)
-        pipeline.fuse_lora(lora_scale=scale)
+        for i in loaded_loras:
+            pipeline.delete_adapters(i)
+        if lora not in loaded_loras:
+            pipeline.load_lora_weights(lora_path, adapter_name=lora)
+            loaded_loras.append(lora)
+        pipeline.set_adapters([lora], adapter_weights=[scale])
 
     # load model
     def load_model(self):
@@ -115,7 +124,7 @@ class Pipeline:
             a = utils.prompt.parser(prompt)
             if a.lora is not None:
                 self.__pipeline.enable_lora()
-                self.load_lora(self.__pipeline, a.lora.value, a.lora.scale)
+                self.load_lora(self.__pipeline, a.lora.value, a.lora.scale, self.txt2img_pipeline_loaded_loras)
             return self.__pipeline(
                 prompt=a.value,
                 negative_prompt=negative_prompt,
@@ -141,7 +150,8 @@ class Pipeline:
             a = utils.prompt.parser(prompt)
             if a.lora is not None:
                 self.__pipeline_adapter.enable_lora()
-                self.load_lora(self.__pipeline_adapter, a.lora.value, a.lora.scale)
+                self.__pipeline_adapter.unload_lora_weights()
+                self.load_lora(self.__pipeline_adapter, a.lora.value, a.lora.scale, self.sketch_pipeline_loaded_loras)
             images = self.__pipeline_adapter(
                 prompt=a.value,
                 negative_prompt=negative_prompt,
@@ -167,7 +177,9 @@ class Pipeline:
             a = utils.prompt.parser(prompt)
             if a.lora is not None:
                 self.__pipeline_reference.enable_lora()
-                self.load_lora(self.__pipeline_reference, a.lora.value, a.lora.scale)
+                self.__pipeline_reference.unload_lora_weights()
+                self.load_lora(self.__pipeline_reference, a.lora.value, a.lora.scale,
+                               self.reference_pipeline_loaded_loras)
             return self.__pipeline_reference(ref_image=image,
                                              prompt=a.value,
                                              width=width,
@@ -197,7 +209,8 @@ class Pipeline:
             a = utils.prompt.parser(prompt)
             if a.lora is not None:
                 self.__pipeline_canny.enable_lora()
-                self.load_lora(self.__pipeline_canny, a.lora.value, a.lora.scale)
+                self.__pipeline_canny.unload_lora_weights()
+                self.load_lora(self.__pipeline_canny, a.lora.value, a.lora.scale, self.canny_pipeline_loaded_loras)
             return self.__pipeline_canny(
                 a.value,
                 image=canny_image,
