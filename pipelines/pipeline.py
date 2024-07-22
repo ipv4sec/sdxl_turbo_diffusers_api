@@ -67,6 +67,7 @@ class Pipeline:
             variant="fp16",
             vae=AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
         ).to("cuda")
+        self.__pipeline.enable_freeu(s1=0.9, s2=0.2, b1=0.8, b2=1.2)
         self.__pipeline.scheduler = DPMSolverSinglestepScheduler.from_config(self.__pipeline.scheduler.config)
         # T2I Adapter Sketch pipeline
         # 使用同一个 pipeline.compontent 会有干扰
